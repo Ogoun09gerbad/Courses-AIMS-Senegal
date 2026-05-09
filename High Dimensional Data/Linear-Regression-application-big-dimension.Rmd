@@ -1,0 +1,543 @@
+---
+title: "Supervised learning in high dimension: R"
+author: "Sophie Dabo"
+output:
+  beamer_presentation: 
+    keep_tex: yes
+  ioslides_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, include = FALSE}
+ozone <- read.table("/Users/sophiedabo/Nextcloud/Cours_big_data_inference/ozone.txt",header=T,sep="")
+```
+
+## Linear Regression: Pollution Example
+
+Before beginning the analysis, it is helpful to start by visualizing the data.
+
+```{r}
+library(knitr)
+kable(head(ozone), format = "markdown", digits = 2)
+```
+
+Correlation
+
+```{r}
+library(corrplot)
+library(GGally)
+X=ozone[,2:12]
+matcor=cor(X)
+corrplot(matcor, type="upper", tl.col="black", tl.srt=45)
+#ggpairs(X, columns = 1:8, aes(alpha = 0.8))
+```
+
+```{r, echo = TRUE}
+library("scatterplot3d")
+scatterplot3d(ozone[,"T12"],ozone[,"Vx12"],ozone[,"maxO3"],type="h", pch=16,box=FALSE,xlab="Tempéature à 12h",ylab="Vent",zlab="Ozone")
+
+```
+
+## Data
+
+```{r, include = TRUE}
+head(ozone)
+ozoneframe=as.data.frame(ozone[,-1])
+```
+
+PCA
+
+```{r}
+library("FactoMineR")
+library("factoextra")
+res.pca=PCA(ozoneframe,quali.sup = c(12,13))
+fviz_pca_biplot(res.pca, select.ind = list(contrib = 50), 
+                select.var = list(contrib = 50),ggtheme = theme_minimal(),habillage=12)
+```
+
+
+## Example of pollution
+
+We consider a linear model between ozone, wind, and cloudiness.
+
+```{r, echo = TRUE}
+modele1 <- lm(maxO3~Vx12+T12,data=ozone)
+summary(modele1)
+anova(modele1)
+```
+
+## Model without intercept
+
+```{r, include = TRUE}
+model1<- lm(maxO3~-1+Vx12+T12,data=ozone)
+pred=predict(model1)
+summary(model1)
+```
+
+## Without wind
+
+```{r, include = TRUE}
+model1<- lm(maxO3~Ne12,data=ozone)
+summary(model1)
+model2<- lm(maxO3~Vx9+Vx12+Vx15+Ne9+Ne12+Ne15+T9+T12+T15+maxO3v,data=ozone)
+summary(model2)
+```
+
+## Exhaustive search
+
+The "leaps" package allows you to perform an exhaustive search using the "regsubsets" function. For more than 50 variables, the option "really.big=TRUE" must be added to avoid excessive computation time.
+
+```{r, include = TRUE}
+library(leaps)
+choix <- regsubsets(maxO3~Vx9+Vx12+Vx15+Ne9+Ne12+Ne15+T9+T12+T15+maxO3v,int=T,nbest=1,nvmax=11,method="exh", data=ozone)
+resume=summary(choix)
+resume
+ozone03 <- as.numeric(rownames(resume$wh))+1
+```
+
+##  R2 Choice
+
+Keep  Vx9, Ne9, T12, maxO3v
+
+```{r,echo = TRUE}
+plot(choix,scale="adjr2")
+```
+
+
+
+## By BIC
+
+Keep Intercept Vx9, Ne9, T12, maxO3v
+
+```{r,echo = TRUE}
+plot(choix,scale="bic")
+```
+
+## If  p>>n?
+
+Let us consider the data on the contents of fat, sugar, flour, and water in biscuits (Osbone et al., 1984) for 72 biscuits, available in the "ppls" package. For these 72 biscuits, the compositions in fat, sugar, flour, and water are measured using a classical approach, while the spectrum is observed over all wavelengths between 1100 and 2498 nanometers, regularly spaced every 2 nanometers. We therefore have 700 observed values, or potentially explanatory variables, for each biscuit dough sample.
+
+Typically, this study is conducted in a very high-dimensional context with $p >> n$. On these uncooked biscuits, absorbance is measured for wavelengths between 1100 and 2498 nanometers, regularly spaced every 2 nanometers. There are thus 700 potentially explanatory variables.
+
+Let us consider the percentage of sugars. We have $p = 700$ variables for $n = 40$ individuals. The classical least squares estimator is not defined.
+
+ 
+The classical least squares estimator is not defined.
+
+## Lectrure des données
+
+
+```{r, echo = TRUE}
+library(ppls)
+data(cookie)
+# extraire le taux de sucrose et les spectres
+cook = data.frame(cookie$constituents$sucrose,cookie$NIR)
+names(cook)= c("sucrose",paste("X",1:700,sep=""))
+```
+
+
+## Data
+
+```{r,echo = TRUE}
+# Response
+hist(cook[,"sucrose"])
+```
+
+
+```{r,echo = TRUE}
+# spectres by sucrose intensity
+coul=rainbow(20)[as.integer(as.factor
+    (as.integer(cook[,1]-10)))]
+ts.plot(t(cook[,-1]),col=coul) 
+```
+
+## MCO estimation not valide
+
+
+```{r,echo = TRUE}
+cook.app=cook[1:40,]
+summary(lm(sucrose ~ ., data=cook.app))
+```
+
+## Extract the training and test samples
+
+```{r,echo = TRUE}
+cook.app=cook[1:40,]
+cook.test=cook[41:72,]
+```
+
+## Ridge regression
+
+Ici on a les paramètres $\beta$ en fonction de la  régularisation
+
+```{r, include=TRUE, echo=TRUE}
+library(MASS)
+ plot(lm.ridge(sucrose  ~ ., data=cook.app,
+   lambda = seq(0,1,0.01)))
+```
+
+## Régression ridge avec plusieurs paramètres de régularisation
+
+
+```{r, include=TRUE, echo=TRUE}
+ plot(lm.ridge(sucrose  ~ ., data=cook.app,
+   lambda = seq(0,0.2,0.001)))
+cook.ridge=lm.ridge(sucrose  ~ ., data=cook.app,
+   lambda = seq(0,0.2,0.001))
+```
+
+## Choix du paramètre de régularisation par validation croisée
+
+The $n=40$ observations in the training sample are randomly divided into 4 subsamples of size 10.
+
+```{r,echo = TRUE, include=TRUE}
+library(pls)
+set.seed(87)
+cvseg=cvsegments(nrow(cook.app),k=4,type="random")
+```
+
+## Selection of the regularization parameter by cross-validation
+
+For $\tau$ (here $\lambda$) between $0$ and $1$, we estimate $\beta$ and the corresponding PRESS on each subsample. We sum the 4 PRESS values to obtain the cross-validation PRESS and choose the $\tau$ that minimizes this PRESS.
+
+```{r,echo = TRUE}
+choix.kappa=function(kappamax,cvseg,nbe=100){
+press=rep(0,nbe)
+for (i in 1:length(cvseg)){
+valid=cook.app[unlist(cvseg[i]),]
+modele=lm.ridge(sucrose~.,
+   data=cook.app[unlist(cvseg[-i]),],
+lambda=seq(0,kappamax,length=nbe))
+coeff=coef(modele)
+prediction=matrix(coeff[,1],nrow(coeff),
+   nrow(valid))+coeff[,-1]%*%
+   t(data.matrix(valid[,-1]))
+press=press+rowSums((matrix(valid[,1],
+nrow(coeff),nrow(valid),byrow=T)-
+   prediction)^2)
+      }
+kappaet=seq(0,kappamax,length=
+   nbe)[which.min(press)]
+return(list(kappaet=kappaet,press=press))
+}
+
+```
+
+## Creation of a function to plot residuals versus predicted Y values
+
+```{r,echo = TRUE}
+plot.res=function(x,y,titre="title")
+{
+plot(x,y,col="blue",ylab="Residuals",
+xlab="Predicted values",main=titre)
+abline(h=0,col="green")
+}
+
+```
+
+## Display of results with the optimal PRESS
+
+```{r,echo = TRUE}
+# execution
+
+res=choix.kappa(0.5,cvseg,nbe=1000)
+plot(seq(0,0.5,length=1000),res$press,ylab="PRESS",
+xlab="lambda") # optimal value
+
+```
+
+## Ridge regression with the optimal parameter
+
+```{r,echo = TRUE}
+kappaet=res$kappaet
+cook.ridgeo=lm.ridge(sucrose~.,data=cook.app,
+lambda=kappaet)
+coeff=coef(cook.ridgeo)
+
+# Computation of predicted responses
+
+fit.rid=rep(coeff[1],nrow(cook.app))+
+as.vector(coeff[-1]%*%t(data.matrix(cook.app[,-1])))
+
+```
+
+## Plot of predictions versus true values
+
+```{r,echo = TRUE}
+# True responses versus predicted responses
+
+plot(fit.rid,cook.app[,"sucrose"],ylab="True responses",
+xlab="Predicted responses")
+
+# The line y = x
+
+lines(cook.app[,"sucrose"],cook.app[,"sucrose"])
+
+```
+
+## Residuals
+
+```{r,echo = TRUE}
+# Computation of residuals
+
+res.rid=fit.rid-cook.app[,"sucrose"]
+
+# Residuals versus predicted responses
+
+plot.res(fit.rid,res.rid,titre="")
+
+```
+
+## Prediction on the test sample and computation of prediction error
+
+Since the data are centered and scaled, the appropriate transformation must be applied to obtain the estimated response.
+
+```{r,echo = TRUE}
+# prediction on the test sample
+
+ychap=rep(coeff[1],nrow(cook.test))+
+as.vector(coeff[-1]%*%t(data.matrix(cook.test[,-1])))
+
+```
+
+## Prediction on the test sample and computation of prediction error
+
+```{r,echo = TRUE}
+plot(ychap,cook.test[,1],ylab="True responses",
+xlab="Predicted responses")
+
+## Prediction error
+
+mean((cook.test[,1]-ychap)^2)
+
+```
+
+## Comparison between Ridge and OLS coefficients
+
+
+```{r,echo = TRUE}
+# Linear model by OLS: lambda = 0
+
+coefflm <- coef(lm.ridge(sucrose~.,data = cook.app,
+lambda=0))
+
+```
+
+## Continuation
+
+```{r,echo = TRUE}
+# Plot of coefficients from both models
+
+matplot(t(rbind(coeff,coefflm)),type="l",col=c(2,1))
+legend("topleft", col=c(2,1), lty=c(1,2),
+legend=c("OLS beta", "Ridge beta"), cex=0.8)
+
+```
+
+## LASSO: Selection of the regularization parameter
+
+We choose 1000 values of $\lambda$ and search, via cross-validation (on the mean squared error = MSE, using lars), for the optimal value. The plot shows the mean squared error as a function of the constraint fraction relative to $\lambda$, $\frac{\lambda}{|\hat{\beta}|_1}$.
+
+```{r,echo = TRUE}
+# A sequence of lambda values
+
+library(lars)
+lambdas <- seq(from = 0, to = 1, length = 1000)
+
+```
+
+## Continuation
+
+```{r,echo = TRUE}
+# Optimal lambda or delta by CV using lars
+
+mse.cv <- cv.lars(data.matrix(cook.app[,-1]), cook.app[,1],K = 4,se=F,index=lambdas,use.Gram=F)
+lambdas.op <-lambdas[which.min(mse.cv$cv)]
+
+```
+
+## Prediction using the optimal parameter
+
+
+```{r,echo = TRUE}
+cook.lasso=lars(data.matrix(cook.app[,-1]),
+   cook.app[,1],use.Gram=F)
+fit.lasso=predict(cook.lasso,
+   data.matrix(cook.app[,-1]),s=lambdas.op,
+mode="fraction")$fit
+```
+
+## Prediction using the optimal parameter
+
+
+```{r,echo = TRUE}
+# Plot predictions
+
+plot(fit.lasso,cook.app[,"sucrose"], ylab="True responses",
+xlab="Predicted responses")
+res.lasso=fit.lasso-cook.app[,"sucrose"]
+
+```
+
+## Residuals using the optimal parameter
+
+
+```{r,echo = TRUE}
+# Plot predictions versus residuals
+
+plot.res(fit.lasso,res.lasso)
+
+```
+
+## Prediction error using the optimal parameter
+
+
+```{r,echo = TRUE}
+# Mean squared prediction error
+
+pred.lasso=predict(cook.lasso,
+data.matrix(cook.test[,-1]),
+s=lambdas.op,mode="fraction")$fit
+mean((pred.lasso-cook.test[,"sucrose"])^2)
+
+```
+
+## Regression PCR
+
+We choose the number of components by cross-validation.
+
+```{r,echo = TRUE}
+# Mean squared errors
+
+library(pls)
+cook.pcr=pcr(sucrose~.,ncomp=28,data=cook.app,
+validation="CV",segments=cvseg)
+msepcv.pcr=MSEP(cook.pcr,estimate= c("train","CV"))
+
+```
+
+## PCR regression
+
+Mean errors as a function of the number of components.
+
+```{r,echo = TRUE}
+plot(msepcv.pcr,type="l")
+ncompo=which.min(msepcv.pcr$val["CV",,])-1
+ncompo
+```
+
+## Regression PCR
+
+Evolution of the proportion of variance of the variables explained by each component.
+
+```{r,echo = TRUE}
+# Mean squared errors
+
+cook.pcro=pcr(sucrose~.,ncomp=ncompo,
+data=cook.app)
+
+```
+
+## Regression PCR
+
+```{r,echo = TRUE}
+# Mean squared errors
+
+plot(explvar(cook.pcro),type="l",main="", pin=0.5)
+
+```
+
+## Regression PCR
+
+We compute the prediction error on the test sample.
+
+```{r,echo = TRUE}
+fit.pcr=predict(cook.pcro,ncomp=1:6)[,,6]
+res.pcr=fit.pcr-cook.app[,"sucrose"]
+
+```
+
+## Prediction error on the test sample
+
+```{r,echo = TRUE}
+plot.res(fit.pcr,res.pcr)
+ychap=predict(cook.pcro,newdata=
+cook.test)[,1,ncompo]
+mean((cook.test[,"sucrose"]-ychap)^2)
+
+```
+
+## Regression PLS
+
+PLS regression with up to 28 orthogonal components and residual plot with 28 components.
+We choose the number of components by cross-validation.
+
+```{r,echo = TRUE}
+cook.pls=plsr(sucrose~.,ncomp=28,
+data=cook.app,validation="CV",segments=cvseg)
+print(cook.pls)
+```
+
+## Regression PLS
+
+```{r,echo = TRUE}
+plot(cook.pls)
+msepcv.pls=MSEP(cook.pls,estimate=
+   c("train","CV"))
+```
+
+## Regression PLS
+
+We plot the evolution of the mean squared error as a function of the number of PLS components.
+
+```{r,echo = TRUE}
+plot(msepcv.pls,type="l")
+```
+
+## Regression PLS
+
+We plot the evolution of the proportion of variance of the variables explained by each component.
+
+
+```{r,echo = TRUE}
+plot(explvar(cook.pls),type="l",main="")
+```
+
+## PLS optimal by cross-validation
+
+```{r}
+ncompo=which.min(msepcv.pls$val["CV",,])-1
+ncompo
+
+# optimal model
+
+cook.plso=plsr(sucrose~.,ncomp=ncompo,
+data=cook.app)
+
+# residuals
+
+fit.pls=predict(cook.plso,ncomp=1:ncompo)[,,ncompo]
+plot(fit.pls,cook.app[,"sucrose"],fin=0.5)
+res.pls=fit.pls-cook.app[,"sucrose"]
+plot.res(fit.pls,res.pls)
+
+```
+
+##Prediction error on the test sample
+
+PLS is better than PCR.
+
+```{r,echo = TRUE}
+# mean squared error
+
+ychap=predict(cook.plso,newdata=
+cook.test)[,1,ncompo]
+plot(ychap,cook.test[,1])
+mean((cook.test[,"sucrose"]-ychap)^2)
+
+```
+
+

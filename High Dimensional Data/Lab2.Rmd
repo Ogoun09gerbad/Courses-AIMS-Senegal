@@ -1,0 +1,76 @@
+---
+title: "Non-linear regressions"
+author: "SD"
+date: " "
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Set of 4 functions
+
+To simulate 4 regression functions and a sample $(X_i,Y_i)$, $i=1=...,n=100$
+
+```{r}
+T = 1000
+t = (1:T)/T
+
+truef1 = function(t) 0.5 + (0.2*cos(4*pi*t)) + (0.1*cos(24*pi*t))
+truef2 = function(t) 0.2 + 0.6*(t > 1/3 & t <= 0.75)
+truef3 = function(t) 4*sin(4*pi*t) - sign(t - .3) - sign(.72 - t) + 5
+truef4 = function(t) sqrt(t*(1-t))*sin((2*pi*1.05) /(t+.05)) + 0.5
+```
+
+
+## Visualisation
+
+```{r}
+par(mfrow = c(2,2))
+plot(t,truef1(t),type = "l", col="red", lwd=2)
+plot(t,truef2(t),type = "l", col="red", lwd=2)
+plot(t,truef3(t),type = "l", col="red", lwd=2)
+plot(t,truef4(t),type = "l", col="red", lwd=2)
+```
+
+## Choice of the design points : on [0,1]
+
+Consider $y_i=r_j(x_i)+\epsilon_i$, $j=1,...,4$
+
+```{r}
+n <- 1000 # sample size
+x <- (1:n)/n # the x_i
+x
+
+
+# Choice of signal noise ratio
+rsnr = 5 ## ratio of variance of the epsilon
+
+# Data 1
+f1 = truef1(x) # r_1
+sigma1 <- sd(f1)/rsnr # variance error is 5 times less than the variance of x
+
+Y1 <- f1 + rnorm(n,mean=0,sd=sigma1) # y_i=r_j(x_i)+\epsilon_i
+
+# scatter plot
+plot(Y1 ~ x)
+lines(t,truef1(t),type = "l", col="red", lwd=2)
+```
+
+Let us estimate $r_1$ using the sample $(x_i,y_i)$
+
+```{r}
+#if (!require("KernSmooth")) install.packages("KernSmooth")
+library(KernSmooth)
+
+# locpoly permits to estimate r_1 using h=1/n
+
+fitted_values <- locpoly(x, Y1, bandwidth = 1/n)
+
+plot(Y1 ~ x) # observations
+lines(fitted_values, col = "blue") #estimated regression function
+lines(t,truef1(t),type = "l", col="red", lwd=2)
+
+```
+
