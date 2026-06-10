@@ -1,4 +1,4 @@
-
+#GAI Projet
 # 1. What your project does
 
 Your work builds a **Scientific RAG system** over arXiv papers.  
