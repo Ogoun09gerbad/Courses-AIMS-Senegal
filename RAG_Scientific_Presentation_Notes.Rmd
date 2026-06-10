@@ -125,7 +125,9 @@ Question possible du professeur:
 
 Réponse courte :
 
-> Nous avons choisi multilingual-e5-small car il offre des embeddings de dimension 384 comme MiniLM, mais il est multilingue. Cela permet d'étendre facilement le système à d'autres langues sans modifier l'architecture du pipeline RAG. De plus, ses performances sont reconnues pour les tâches de retrieval.
+> Nous avons choisi multilingual-e5-small car il offre des embeddings de dimension 384 comme MiniLM, mais il est multilingue. 
+> Cela permet d'étendre facilement le système à d'autres langues sans modifier l'architecture du pipeline RAG. 
+> De plus, ses performances sont reconnues pour les tâches de retrieval.
 
 ## 2.6 Vector store with ChromaDB
 You used **ChromaDB** as the persistent vector store.
