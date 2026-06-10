@@ -148,7 +148,13 @@ Why this is useful:
 - it allows scientific filtering
 - it keeps the index persistent across runs
 
+Réponse courte si le professeur demande :
 
+Pourquoi ChromaDB et pas FAISS ?
+
+Réponse :
+
+FAISS est plus rapide pour la recherche vectorielle pure, mais ChromaDB fournit également la gestion des métadonnées, la persistance du stockage et une API simple. Pour notre corpus de 120 articles scientifiques, ChromaDB offrait un meilleur compromis entre simplicité et fonctionnalités.
 
 ## 2.7 Retrieval
 You tested retrieval with a scientific query like:
@@ -184,7 +190,7 @@ Your result:
 - reranking changed the order of several top results
 - but on your small corpus, it did **not** improve the final groundedness consistently
 
-That is not a failure. It is a real observation:
+That is not a failure. It is a real observation: 
 - rerankers are often more useful when the corpus is larger and more diverse
 - on a small, homogeneous corpus, dense retrieval may already be strong
 
@@ -301,6 +307,9 @@ What this demo proves:
 10. What is the difference between retrieval quality and generation quality?
 11. Why is your corpus limited to 120 papers?
 12. What would you improve first if you had more time?
+
+Answers:
+
 
 
 
